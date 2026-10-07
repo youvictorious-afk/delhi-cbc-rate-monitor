@@ -1,5 +1,5 @@
 from io import BytesIO
-
+import asyncio
 import pandas as pd
 
 from fastapi import FastAPI
@@ -20,8 +20,15 @@ from config import CBC_URL
 
 app = FastAPI(
     title="Delhi CBC Rate Monitor",
-    version="1.1"
+    version="1.2"
 )
+
+fetch_status = {
+    "status": "idle",
+    "message": "No fetch running",
+    "checked_at": None,
+    "records_found": 0
+}
 
 
 @app.on_event("startup")
@@ -47,37 +54,87 @@ def health():
     }
 
 
-# Browser-friendly FETCH endpoint
+async def run_fetch():
+
+    global fetch_status
+
+    try:
+
+        fetch_status = {
+            "status": "running",
+            "message": "Opening CBC and inspecting Power BI...",
+            "checked_at": None,
+            "records_found": 0
+        }
+
+        result = await collect_cbc_report()
+
+        rows = extract_delhi_lines(
+            result["text"]
+        )
+
+        saved = 0
+
+        for row in rows:
+
+            row["checked_at"] = result["checked_at"]
+            row["source_url"] = CBC_URL
+
+            insert_rate(row)
+
+            saved += 1
+
+        fetch_status = {
+            "status": "completed",
+            "message": "Fetch completed",
+            "checked_at": result["checked_at"],
+            "records_found": len(rows),
+            "records_saved": saved
+        }
+
+    except Exception as e:
+
+        fetch_status = {
+            "status": "error",
+            "message": str(e),
+            "checked_at": None,
+            "records_found": 0
+        }
+
+
 @app.get("/fetch")
 async def fetch_rates():
 
-    result = await collect_cbc_report()
+    global fetch_status
 
-    rows = extract_delhi_lines(
-        result["text"]
+    if fetch_status["status"] == "running":
+
+        return {
+            "status": "already_running",
+            "message": "CBC fetch is already running",
+            "check": "/fetch-status"
+        }
+
+    asyncio.create_task(
+        run_fetch()
     )
 
-    saved = 0
-
-    for row in rows:
-
-        row["checked_at"] = result["checked_at"]
-        row["source_url"] = CBC_URL
-
-        insert_rate(row)
-
-        saved += 1
-
     return {
-        "status": "success",
-        "checked_at": result["checked_at"],
-        "delhi_records_found": len(rows),
-        "records_saved": saved
+        "status": "started",
+        "message": "CBC fetch started in background",
+        "check": "/fetch-status"
     }
+
+
+@app.get("/fetch-status")
+def fetch_status_endpoint():
+
+    return fetch_status
 
 
 @app.get("/rates")
 def rates():
+
     return {
         "scope": "DELHI ONLY",
         "rows": get_latest()
@@ -86,6 +143,7 @@ def rates():
 
 @app.get("/history")
 def history():
+
     return {
         "scope": "DELHI ONLY",
         "rows": get_history()

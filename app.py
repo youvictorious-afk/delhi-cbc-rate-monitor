@@ -20,19 +20,17 @@ from config import CBC_URL
 
 app = FastAPI(
     title="Delhi CBC Rate Monitor",
-    version="1.0"
+    version="1.1"
 )
 
 
 @app.on_event("startup")
 def startup():
-
     init_database()
 
 
 @app.get("/")
 def home():
-
     return {
         "system": "Delhi CBC Rate Monitor",
         "status": "running",
@@ -43,14 +41,14 @@ def home():
 
 @app.get("/health")
 def health():
-
     return {
         "status": "OK",
         "scope": "DELHI ONLY"
     }
 
 
-@app.post("/fetch")
+# Browser-friendly FETCH endpoint
+@app.get("/fetch")
 async def fetch_rates():
 
     result = await collect_cbc_report()
@@ -64,7 +62,6 @@ async def fetch_rates():
     for row in rows:
 
         row["checked_at"] = result["checked_at"]
-
         row["source_url"] = CBC_URL
 
         insert_rate(row)
@@ -72,39 +69,26 @@ async def fetch_rates():
         saved += 1
 
     return {
-
         "status": "success",
-
-        "checked_at":
-            result["checked_at"],
-
-        "delhi_records_found":
-            len(rows),
-
-        "records_saved":
-            saved
+        "checked_at": result["checked_at"],
+        "delhi_records_found": len(rows),
+        "records_saved": saved
     }
 
 
 @app.get("/rates")
 def rates():
-
     return {
         "scope": "DELHI ONLY",
-
-        "rows":
-            get_latest()
+        "rows": get_latest()
     }
 
 
 @app.get("/history")
 def history():
-
     return {
         "scope": "DELHI ONLY",
-
-        "rows":
-            get_history()
+        "rows": get_history()
     }
 
 
@@ -131,17 +115,13 @@ def export_excel():
     output.seek(0)
 
     return StreamingResponse(
-
         output,
-
         media_type=(
             "application/vnd.openxmlformats-"
             "officedocument.spreadsheetml.sheet"
         ),
-
         headers={
             "Content-Disposition":
-            "attachment; "
-            'filename="Delhi_CBC_Rates.xlsx"'
+            'attachment; filename="Delhi_CBC_Rates.xlsx"'
         }
     )

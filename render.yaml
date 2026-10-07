@@ -1,0 +1,13 @@
+services:
+
+  - type: web
+
+    name: delhi-cbc-rate-monitor
+
+    runtime: docker
+
+    plan: free
+
+    autoDeploy: true
+
+    healthCheckPath: /health

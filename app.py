@@ -156,20 +156,11 @@ def fetch_status_endpoint():
 @app.get("/diagnostic")
 async def diagnostic():
 
-    try:
-
-        result = await collect_cbc_report()
-
-        text = result.get("text", "")
-
-        return {
-            "status": "success",
-            "text_length": len(text),
-            "has_delhi": "DELHI" in text.upper(),
-            "has_powerbi": "POWER BI" in text.upper(),
-            "preview": text[:3000]
-        }
-
+    return {
+        "status": "ok",
+        "message": "Diagnostic endpoint is working",
+        "next": "Use Render Logs for Power BI inspection"
+    }
     except Exception as e:
 
         return {

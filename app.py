@@ -1,6 +1,7 @@
 from io import BytesIO
 import asyncio
 import pandas as pd
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
@@ -113,8 +114,30 @@ async def fetch_rates():
             "status": "already_running",
             "message": "CBC fetch is already running",
             "check": "/fetch-status"
+            
+        }
+@app.get("/debug/raw")
+def debug_raw():
+
+    path = Path("data/cbc_raw_text.txt")
+
+    if not path.exists():
+
+        return {
+            "status": "no_data",
+            "message": "CBC raw text has not been captured yet."
         }
 
+    text = path.read_text(
+        encoding="utf-8",
+        errors="ignore"
+    )
+
+    return {
+        "status": "ok",
+        "length": len(text),
+        "preview": text[:12000]
+    }
     asyncio.create_task(
         run_fetch()
     )

@@ -40,94 +40,94 @@ async def collect_cbc_report():
         print("CBC page loaded")
 
         # Allow Power BI to initialise
-        await page.wait_for_timeout(15000)
+        await page.wait_for_timeout(20000)
 
-        # Extra time for Power BI report
-        await page.wait_for_timeout(15000)
+        print(
+            "Total frames:",
+            len(page.frames)
+        )
 
         all_text = []
 
-        # Main page text
-        try:
-            main_text = await page.locator("body").inner_text(
-                timeout=30000
-            )
-
-            all_text.append(
-                "\n===== MAIN PAGE =====\n"
-            )
-
-            all_text.append(main_text)
-
-        except Exception as e:
+        for index, frame in enumerate(page.frames):
 
             print(
-                "Main page text error:",
-                e
+                f"\n===== FRAME {index} ====="
             )
 
-        # Inspect every iframe/frame
-        print(
-            f"Frames detected: {len(page.frames)}"
-        )
-
-        for index, frame in enumerate(page.frames):
+            print(
+                "URL:",
+                frame.url
+            )
 
             try:
 
+                title = await frame.title()
+
                 print(
-                    f"Reading frame {index}: "
-                    f"{frame.url}"
+                    "TITLE:",
+                    title
                 )
 
-                frame_text = await frame.locator(
-                    "body"
-                ).inner_text(
-                    timeout=20000
+            except Exception as e:
+
+                print(
+                    "Title error:",
+                    e
                 )
 
-                if frame_text.strip():
+            try:
+
+                body = frame.locator("body")
+
+                text = await body.inner_text(
+                    timeout=30000
+                )
+
+                print(
+                    "TEXT LENGTH:",
+                    len(text)
+                )
+
+                if text.strip():
 
                     all_text.append(
                         f"\n===== FRAME {index} =====\n"
                     )
 
-                    all_text.append(
-                        frame_text
-                    )
+                    all_text.append(text)
 
             except Exception as e:
 
                 print(
-                    f"Frame {index} error:",
+                    "BODY ERROR:",
                     e
                 )
 
-        # Combine everything
-        text = "\n".join(all_text)
-
-        html = await page.content()
-
-        # Screenshot
+        # Take screenshot of complete page
         await page.screenshot(
             path=str(SCREENSHOT_PATH),
             full_page=True
         )
 
-        # Save HTML
+        # Save complete HTML
+        html = await page.content()
+
         HTML_PATH.write_text(
             html,
             encoding="utf-8"
         )
 
-        # Save extracted text
+        # Combined text
+        text = "\n".join(all_text)
+
         RAW_TEXT_PATH.write_text(
             text,
             encoding="utf-8"
         )
 
         print(
-            "Collected text length:",
+            "\nTOTAL TEXT LENGTH:",
             len(text)
         )
 
